@@ -34,10 +34,17 @@ public class Lexer implements ILexer {
 	// create list of all new line instances
 	private void findNewLines(String input) {
 		newLines = new ArrayList<Integer>();
+		if (input.length() == 0) {
+			return;
+		}
 		for (int i = 0; i < input.length(); i++) {
 			if (input.charAt(i) == '\n') {
 				newLines.add(i);
 			}
+		}
+		// if the input had no end line at the end, add it
+		if (input.charAt(input.length() - 1) != '\n') {
+			newLines.add(input.length());
 		}
 	}
 	
@@ -78,8 +85,10 @@ public class Lexer implements ILexer {
 
 	@Override
 	public IToken next() throws LexicalException {
-		// TODO Auto-generated method stub
-		return tokens.get(index);
+		// get the next token in the list
+		int curr = index;
+		index++;
+		return tokens.get(curr);
 	}
 
 	@Override

@@ -31,16 +31,23 @@ public class Token implements IToken {
 
 	@Override
 	public SourceLocation getSourceLocation() {
-		int[] arr = new int[newLines.size()];
-		for (int i = 0; i < newLines.size(); i++) {
-			arr[i] = newLines.get(i);
-		}
-		
 		// use token position and length to find line and column
-		int line;
-		int column;
+		int line = 0;
+		int column = 0;
+		for (int i = 0; i < newLines.size(); i++) {
+			if (pos < newLines.get(i)) {
+				line = i;
+				if (line == 0) {
+					column = pos;
+					break;
+				} else {
+					column = pos - newLines.get(i-1) - 1;
+					break;
+				}
+			}
+		}
 		SourceLocation loc = new SourceLocation(line, column);
-		return null;
+		return loc;
 	}
 
 	@Override

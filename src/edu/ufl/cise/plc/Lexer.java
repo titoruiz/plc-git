@@ -67,6 +67,21 @@ public class Lexer implements ILexer {
 					tokens.add(new Token(Kind.MINUS, "-", startPos, 1, newLines));
 					pos++;
 				}
+				case '=' -> {
+					// checks next character 
+					char next = source.charAt(pos + 1);
+					pos++;
+					
+					// if the next character is a '=', then it is EQUAL (==)
+					if(next == 61) {
+						tokens.add(new Token(Kind.EQUALS, "==", startPos, 2, newLines));
+						pos++;
+					}
+					// for one equal '=' do ASSIGN (=)
+					else {
+						tokens.add(new Token(Kind.ASSIGN, "=", startPos, 1, newLines));
+					}
+				}
 				case '0' -> {
 					// end of the input
 					tokens.add(new Token(Kind.EOF, "0", startPos, 1, newLines));

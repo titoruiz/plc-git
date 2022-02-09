@@ -25,8 +25,8 @@ public class Token implements IToken {
 
 	@Override
 	public String getText() {
-		// TODO Auto-generated method stub
-		return null;
+		// return the text of the token
+		return text;
 	}
 
 	@Override
@@ -52,14 +52,14 @@ public class Token implements IToken {
 
 	@Override
 	public int getIntValue() {
-		// TODO Auto-generated method stub
-		return 0;
+		// return integer value of string
+		return Integer.parseInt(text);
 	}
 
 	@Override
 	public float getFloatValue() {
-		// TODO Auto-generated method stub
-		return 0;
+		// return float value of string
+		return Float.valueOf(text).floatValue();
 	}
 
 	@Override

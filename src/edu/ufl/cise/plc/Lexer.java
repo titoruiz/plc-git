@@ -4,12 +4,17 @@ import java.util.ArrayList;
 import edu.ufl.cise.plc.IToken.Kind;
 
 public class Lexer implements ILexer {
+	// stores tokens in array list
 	ArrayList<Token> tokens;
-	// index of tokens list
+	// current token index in array list
 	int index;
+	// holds source code in a String
 	String source;
+	// current position in the input string
 	int pos;
+	// stores the indices of every new line character
 	ArrayList<Integer> newLines;
+	// states of the DFA algorithm 
 	private enum State {
 		START,
 		IN_IDENT,
@@ -19,10 +24,12 @@ public class Lexer implements ILexer {
 		IN_NUM,
 		HAVE_EQ,
 		HAVE_MINUS,
+		IN_STRLIT,
+		IN_COMM,
 	}
 
+	// constructor for the lexer class
 	public Lexer(String input) {
-		// hold source code in a String
 		tokens = new ArrayList<Token>();
 		index = 0;
 		source = input + '0';
@@ -31,7 +38,7 @@ public class Lexer implements ILexer {
 		createTokens();
 	}
 	
-	// create list of all new line instances
+	// finds the indices of every new line character
 	private void findNewLines(String input) {
 		newLines = new ArrayList<Integer>();
 		if (input.length() == 0) {
@@ -48,15 +55,34 @@ public class Lexer implements ILexer {
 		}
 	}
 	
+	// implements DFA algorithm
 	private void createTokens() {
 		State state = State.START;
+		String curr = "";
+		int startPos = 0;
 		while (true) {
 			char ch = source.charAt(pos);
 			switch (state) {
 			case START -> {
-				int startPos = pos;
+				startPos = pos;
 				switch (ch) {
 				case ' ', '\n', '\t', '\r' -> {
+					pos++;
+				}
+				case '(' -> {
+					tokens.add(new Token(Kind.LPAREN, "(", startPos, 1, newLines));
+					pos++;
+				}
+				case ')' -> {
+					tokens.add(new Token(Kind.RPAREN, ")", startPos, 1, newLines));
+					pos++;
+				}
+				case '[' -> {
+					tokens.add(new Token(Kind.LSQUARE, "[", startPos, 1, newLines));
+					pos++;
+				}
+				case ']' -> {
+					tokens.add(new Token(Kind.RSQUARE, "]", startPos, 1, newLines));
 					pos++;
 				}
 				case '+' -> {
@@ -67,48 +93,220 @@ public class Lexer implements ILexer {
 					tokens.add(new Token(Kind.MINUS, "-", startPos, 1, newLines));
 					pos++;
 				}
-				case '=' -> {
-					// checks next character 
-					char next = source.charAt(pos + 1);
+				case '"' -> {
+					state = State.IN_STRLIT;
+					curr += '\"';
 					pos++;
-					
-					// if the next character is a '=', then it is EQUAL (==)
-					if(next == 61) {
-						tokens.add(new Token(Kind.EQUALS, "==", startPos, 2, newLines));
-						pos++;
-					}
-					// for one equal '=' do ASSIGN (=)
-					else {
-						tokens.add(new Token(Kind.ASSIGN, "=", startPos, 1, newLines));
-					}
+				}
+				case '#' -> {
+					state = State.IN_COMM;
+					pos++;
+				}
+				case '*' -> {
+					tokens.add(new Token(Kind.TIMES, "*", startPos, 1, newLines));
+					pos++;
+				}
+				case 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','_','$' -> {
+					state = State.IN_IDENT;
+					curr += ch;
+					pos++;
+				}
+				case '=' -> {
+					state = State.HAVE_EQ;
+					curr += ch;
+					pos++;
+				}
+				case '1','2','3','4','5','6','7','8','9' -> {
+					state = State.IN_NUM;
+					curr += ch;
+					pos++;
 				}
 				case '0' -> {
-					// end of the input
-					tokens.add(new Token(Kind.EOF, "0", startPos, 1, newLines));
-					return;
+					// check if we're at the end of the source
+					if (pos == (source.length() - 1)) {
+						tokens.add(new Token(Kind.EOF, "0", startPos, 1, newLines));
+						return;
+					} else {
+						state = State.HAVE_ZERO;
+						curr += ch;
+						pos++;
+					}
+				}
+				default -> {
+					// an illegal token has been detected
+					curr += ch;
+					tokens.add(new Token(Kind.ERROR, curr, startPos, 1, newLines));
+					pos++;
+					curr = "";
+				}
+				}
+			}
+			case HAVE_ZERO -> { // check for dots
+				switch(ch) {
+				case '.' -> {
+					state = State.HAVE_DOT;
+					curr += ch;
+					pos++;
+				}
+				default -> {
+					// a dot was not detected after the zero, so it's only a 0
+					// next char is not part of this token, so do not increment pos
+					tokens.add(new Token(Kind.INT_LIT, curr, startPos, curr.length(), newLines));
+					state = State.START;
+					curr = "";
+				}
+				}
+			}
+			case IN_FLOAT -> {
+				switch(ch) {
+				case '0','1','2','3','4','5','6','7','8','9' -> {
+					curr += ch;
+					pos++;
+				}
+				default -> {
+					// a float token has been detected
+					tokens.add(new Token(Kind.FLOAT_LIT, curr, startPos, curr.length(), newLines));
+					// next char is not part of this token, so do not increment pos
+					state = State.START;
+					curr = "";
+				}
+				}
+			}
+			case IN_NUM -> {
+				switch(ch) {
+				case '0','1','2','3','4','5','6','7','8','9' -> {
+					curr += ch;
+					pos++;
+				}
+				case '.' -> {
+					state = State.HAVE_DOT;
+					curr += ch;
+					pos++;
+				}
+				default -> {
+					// check if the integer is not above the maximum value
+					try {
+						int intVal = Integer.parseInt(curr);
+						tokens.add(new Token(Kind.INT_LIT, curr, startPos, curr.length(), newLines));
+						state = State.START;
+						curr = "";
+					}
+					catch(NumberFormatException e) {
+						tokens.add(new Token(Kind.ERROR, curr, startPos, curr.length(), newLines));
+						state = State.START;
+						curr = "";
+					}
+				}
+				}
+			}
+			case HAVE_DOT -> {
+				switch(ch) {
+				case '0','1','2','3','4','5','6','7','8','9' -> {
+					state = State.IN_FLOAT;
+					curr += ch;
+					pos++;
+				}
+				default -> {
+					// there was no digit after the dot, so the token is not a float.
+					tokens.add(new Token(Kind.ERROR, curr, startPos, curr.length(), newLines));
+					// next char is not part of this token, so do not increment pos
+					state = State.START;
+					curr = "";
+				}
+				}
+			}
+			case HAVE_EQ -> {
+				switch(ch) {
+				case '=' -> {
+					curr += ch;
+					pos++;
+					tokens.add(new Token(Kind.EQUALS, curr, startPos, curr.length(), newLines));
+					state = State.START;
+					curr = "";
+				}
+				default -> {
+					// an assignment operator has been detected
+					tokens.add(new Token(Kind.ASSIGN, curr, startPos, curr.length(), newLines));
+					// next char is not part of this token, so do not increment pos
+					state = State.START;
+					curr = "";
+				}
+				}
+			}
+			case IN_IDENT -> {
+				switch(ch) {
+				case 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','_','$','0','1','2','3','4','5','6','7','8','9' -> {
+					// if the next character is the EOF
+					if ((ch == '0') && (pos == (source.length() - 1))) {
+						tokens.add(new Token(Kind.IDENT, curr, startPos, curr.length(), newLines));
+						// return to the START state and handle the EOF character
+						state = State.START;
+						// next char is not part of this token, so do not increment pos
+						curr = "";
+					}
+					else {
+						curr += ch;
+						pos++;
+					}
+				}
+				default -> {
+					tokens.add(new Token(Kind.IDENT, curr, startPos, curr.length(), newLines));
+					// next char is not part of this token, so do not increment pos
+					state = State.START;
+					curr = "";
+				}
+				}
+			}
+			case IN_STRLIT -> {
+				switch(ch) {
+				case 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',' ' -> {
+					curr += ch;
+					pos++;
+				}
+				case '"' -> {
+					curr += ch;
+					pos++;
+					tokens.add(new Token(Kind.STRING_LIT, curr, startPos, curr.length(), newLines));
+					state = State.START;
+					curr = "";
+				}
+				default -> {
+					throw new IllegalStateException("string literal bug");
+				}
+				}
+			}
+			case IN_COMM -> {
+				switch(ch) {
+				case '\n' -> {
+					pos++;
+					state = State.START;
+				}
+				default -> {
+					pos++;
 				}
 				}
 			}
 			default -> throw new IllegalStateException("lexer bug");
 			}
 		}
-		// if EOF has been reached
-		//if (pos == source.length()) {
-		//	tokens.add(new Token(Kind.EOF, "", 0, 0));
-		//}
 	}
 
-	@Override
+	// returns the next token in the token array list and increments pos
 	public IToken next() throws LexicalException {
 		// get the next token in the list
 		int curr = index;
 		index++;
-		return tokens.get(curr);
+		// if the next token is an illegal character, throw error
+		if (tokens.get(curr).kind == Kind.ERROR) {
+			throw new LexicalException("input bug");
+		}
+		else {
+			return tokens.get(curr);
+		}
 	}
 
-	@Override
+	// returns the next token in the token array list but does not increment pos
 	public IToken peek() throws LexicalException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

@@ -1,5 +1,7 @@
 package edu.ufl.cise.plc;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import edu.ufl.cise.plc.IToken.Kind;
 
@@ -14,6 +16,9 @@ public class Lexer implements ILexer {
 	int pos;
 	// stores the indices of every new line character
 	ArrayList<Integer> newLines;
+	// map of all kind keywords
+	Map<String, Kind> map = new HashMap<String, Kind>();
+	
 	// states of the DFA algorithm 
 	private enum State {
 		START,
@@ -35,7 +40,50 @@ public class Lexer implements ILexer {
 		source = input + '0';
 		pos = 0;
 		findNewLines(input);
+		initMap();
 		createTokens();
+	}
+	
+	// initializes the map of keywords and colors
+	public void initMap() {
+		// keywords
+		map.put("if", Kind.KW_IF);
+		map.put("fi", Kind.KW_FI);
+		map.put("else", Kind.KW_ELSE);
+		map.put("write", Kind.KW_WRITE);
+		map.put("console", Kind.KW_CONSOLE);
+		map.put("void", Kind.KW_VOID);
+		// types
+		map.put("int", Kind.TYPE);
+		map.put("float", Kind.TYPE);
+		map.put("string", Kind.TYPE);
+		map.put("boolean", Kind.TYPE);
+		map.put("color", Kind.TYPE);
+		map.put("image", Kind.TYPE);
+		// booleans
+		map.put("true", Kind.BOOLEAN_LIT);
+		map.put("false", Kind.BOOLEAN_LIT);
+		// color constants
+		map.put("BLACK", Kind.COLOR_CONST);
+		map.put("BLUE", Kind.COLOR_CONST);
+		map.put("CYAN", Kind.COLOR_CONST);
+		map.put("DARK_GRAY", Kind.COLOR_CONST);
+		map.put("GRAY", Kind.COLOR_CONST);
+		map.put("GREEN", Kind.COLOR_CONST);
+		map.put("LIGHT_GRAY", Kind.COLOR_CONST);
+		map.put("MAGENTA", Kind.COLOR_CONST);
+		map.put("ORANGE", Kind.COLOR_CONST);
+		map.put("PINK", Kind.COLOR_CONST);
+		map.put("RED", Kind.COLOR_CONST);
+		map.put("WHITE", Kind.COLOR_CONST);
+		map.put("YELLOW", Kind.COLOR_CONST);
+		// color ops
+		map.put("getRed", Kind.COLOR_OP);
+		map.put("getGreen", Kind.COLOR_OP);
+		map.put("getBlue", Kind.COLOR_OP);
+		// image ops
+		map.put("getWidth", Kind.IMAGE_OP);
+		map.put("getHeight", Kind.IMAGE_OP);
 	}
 	
 	// finds the indices of every new line character
@@ -85,12 +133,53 @@ public class Lexer implements ILexer {
 					tokens.add(new Token(Kind.RSQUARE, "]", startPos, 1, newLines));
 					pos++;
 				}
+				case '<' -> {
+					char next = source.charAt(pos+1);
+					if(next == '<') {
+						tokens.add(new Token(Kind.LANGLE, "<<", startPos, 1, newLines));
+						pos++;
+					}
+					else if(next == '=') {
+						tokens.add(new Token(Kind.LE, "<=", startPos, 1, newLines));
+						pos++;
+					}
+					else if(next == '-') {
+						tokens.add(new Token(Kind.LARROW, "<-", startPos, 1, newLines));
+						pos++;
+					}
+					else {
+						tokens.add(new Token(Kind.LT, "<", startPos, 1, newLines));
+					}
+					pos++;
+				}
+				case '>' -> {
+					char next = source.charAt(pos+1);
+					if(next == '>') {
+						tokens.add(new Token(Kind.RANGLE, ">>", startPos, 1, newLines));
+						pos++;
+					}
+					else if(next == '=') {
+						tokens.add(new Token(Kind.GE, ">=", startPos, 1, newLines));
+						pos++;
+					}
+					else {
+						tokens.add(new Token(Kind.GT, ">", startPos, 1, newLines));
+					}
+					pos++;
+				}
 				case '+' -> {
 					tokens.add(new Token(Kind.PLUS, "+", startPos, 1, newLines));
 					pos++;
 				}
 				case '-' -> {
-					tokens.add(new Token(Kind.MINUS, "-", startPos, 1, newLines));
+					char next = source.charAt(pos+1);
+					if(next == '>') {
+						tokens.add(new Token(Kind.RARROW, "->", startPos, 1, newLines));
+						pos++;
+					}
+					else {
+						tokens.add(new Token(Kind.MINUS, "-", startPos, 1, newLines));
+					}
 					pos++;
 				}
 				case '"' -> {
@@ -104,6 +193,45 @@ public class Lexer implements ILexer {
 				}
 				case '*' -> {
 					tokens.add(new Token(Kind.TIMES, "*", startPos, 1, newLines));
+					pos++;
+				}
+				case '/' -> {
+					tokens.add(new Token(Kind.DIV, "/", startPos, 1, newLines));
+					pos++;
+				}
+				case '%' -> {
+					tokens.add(new Token(Kind.MOD, "%", startPos, 1, newLines));
+					pos++;
+				}
+				case '&' -> {
+					tokens.add(new Token(Kind.AND, "&", startPos, 1, newLines));
+					pos++;
+				}
+				case '|' -> {
+					tokens.add(new Token(Kind.OR, "%", startPos, 1, newLines));
+					pos++;
+				}
+				case '!' -> {
+					char next = source.charAt(pos+1);
+					if(next == '=') {
+						tokens.add(new Token(Kind.NOT_EQUALS, "!=", startPos, 1, newLines));
+						pos++;
+					}
+					else {
+						tokens.add(new Token(Kind.BANG, "!", startPos, 1, newLines));
+					}
+					pos++;
+				}
+				case ';' -> {
+					tokens.add(new Token(Kind.SEMI, ";", startPos, 1, newLines));
+					pos++;
+				}
+				case ',' -> {
+					tokens.add(new Token(Kind.COMMA, ",", startPos, 1, newLines));
+					pos++;
+				}
+				case '^' -> {
+					tokens.add(new Token(Kind.RETURN, "^", startPos, 1, newLines));
 					pos++;
 				}
 				case 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','_','$' -> {
@@ -250,7 +378,16 @@ public class Lexer implements ILexer {
 					}
 				}
 				default -> {
-					tokens.add(new Token(Kind.IDENT, curr, startPos, curr.length(), newLines));
+					
+					// if the identifier is in the keywords map
+					if(map.containsKey(curr)) {
+						// adds token for the keyword
+						tokens.add(new Token(map.get(curr), curr, startPos, curr.length(), newLines));
+					}
+					else {
+						// else it is an identifier
+						tokens.add(new Token(Kind.IDENT, curr, startPos, curr.length(), newLines));
+					}
 					// next char is not part of this token, so do not increment pos
 					state = State.START;
 					curr = "";
